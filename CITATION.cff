@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: "Replication package for: Measuring spillovers and connectedness in gretl"
+message: "If you use this replication package, please cite the following article."
+authors:
+  - family-names: Casoli
+    given-names: Chiara
+  - family-names: Pedini
+    given-names: Luca
+version: 1.0.0
+doi: 10.1007/s00180-025-01680-9
+journal: Computational Statistics
+year: 2026
