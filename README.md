@@ -47,3 +47,10 @@ To replicate the exercise, simply run the following script:
   - Place all these files in the same directory together with CS_replication.inp.
   - Open CS_replication.inp in gretl, and simply remove or comment --frompkg=DYconn
     from the open command line.
+
+
+## DOI
+
+This replication package is archived at Zenodo:
+
+[10.5281/zenodo.18592749](https://doi.org/10.5281/zenodo.18592749)
