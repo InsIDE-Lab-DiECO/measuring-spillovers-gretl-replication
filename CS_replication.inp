@@ -1,0 +1,136 @@
+# Replication exercise of Diebold and Yilmaz (2009) & Greenwood-Nimmo et al. (2024)
+
+set verbose off
+
+include DYconn.gfn
+
+open dy2009.gdt --frompkg=DYconn 
+
+list X = 1..19 # weekly returns (global equity markets)f
+
+scalar p = 2 # VAR order
+scalar h = 10 # (G)FEVD horizon
+scalar genFEVD = 0 # 0 for FEVD, 1 for generalized FEVD
+
+# 1: static connectedness analysis (with FEVD)
+matrix static = DYstatic_VAR(X, p, h, genFEVD)
+
+printf "\n"
+printf "DY static connectedness - FEVD\n"
+printf "\n"
+eval static
+
+DYstatic_plot(static) # NOTE: this function requires heatmap.gfn!
+
+# 2: static connectedness analysis (GFEVD)
+genFEVD = 1
+
+static = DYstatic_VAR(X, p, h, genFEVD)
+printf "\n"
+printf "DY static connectedness - FEVD\n"
+printf "\n"
+eval static
+
+DYstatic_plot(static) # NOTE: this function requires heatmap.gfn!
+
+#-----------------------------------------------------------------
+
+# 3: dynamic connectedness analysis (FEVD)
+
+scalar win = 200 # rolling window length, as set in DY2009
+bundle myoptions = _(window = win, genFEVD=0) 
+dynamic = DYdynamic_VAR(X, p, h, myoptions)
+
+DYdynamic_plot(dynamic, "tot")  # total connectedness
+
+# 4: dynamic connectedness analysis (GFEVD)
+
+myoptions.genFEVD = 1
+dynamic = DYdynamic_VAR(X, p, h, myoptions)
+
+DYdynamic_plot(dynamic, "tot")  
+
+# 4.1: sub-plots
+
+DYdynamic_plot(dynamic, "net", _(grid=0))  # index analysis: net
+
+# NOTE: in the above grid=0 turn gridplot off (which is active by default).
+# This is because we are considering many series simultaneously and the gridplot 
+# solution may be a little suboptimal from a visual perspective!
+
+DYdynamic_plot(dynamic, "US")   # country analysis
+
+# 5: bootstrap extension - Greenwood-Nimmo et al.(2024)
+
+set seed 31415 
+
+myoptions = _(genFEVD=1, B=1000) # 1000 bootstrap iterations 
+
+bundle staticB = conn_bootstrap(X, p, h, myoptions) # static analysis
+
+printf "\n"
+printf "Static connectedness (net) - Bootstrapped distribution\n"
+printf "Main summary statistics\n"
+printf "\n"
+
+eval staticB.net_summ
+
+### eval mat2latex(staticB.net_summ)
+
+#-----------------------------------------------------------------------
+# NOTE: this block is computationally intensive!
+# It requires a lot of time to run
+
+myoptions.window = win
+dynamicB = DYdynamic_VAR(X, p, h, myoptions) # dynamic analysis
+
+DYdynamic_plot(dynB, "tot", _(bnd=0.95)) # plot a confidence band of 0.95 
+DYdynamic_plot(dynB, "US", _(bnd = 0.95))
+#-----------------------------------------------------------------------
+
+# 6: clusters
+
+# clusters a priori (theory-driven) defined 
+
+matrix developed = seq(1,7)
+matrix emerging = seq(8,19)
+
+matrix XX = static[-end,-end]/nelem(X)
+
+matrix group = zeros(2,2)
+group[1,1] = sum(XX[developed, developed]) - tr(XX[developed, developed])
+group[1,2] = sum(XX[developed, emerging])
+group[2,1] = sum(XX[emerging, developed])
+group[2,2] = sum(XX[emerging, emerging]) - tr(XX[emerging, emerging])
+
+matrix TOgroup = zeros(1,2)
+
+TOgroup[1,1] = sum(static[end,developed])
+TOgroup[1,2] = sum(static[end,emerging])
+
+matrix FROMgroup = zeros(2,1)
+FROMgroup[1,1] = sum(static[developed,end])
+FROMgroup[2,1] = sum(static[emerging,end])
+
+scalar within = tr(group)
+scalar between = sum(group -(group .* I(cols(group))))
+scalar tot_check = within + between
+
+matrix wb_matrix = tot_check | within | between 
+rnameset(wb_matrix, defarray("total", "within", "between"))
+
+matrix CTgroup = group ~ FROMgroup
+matrix TOTgroup = sumc(FROMgroup)
+matrix tmp = TOgroup ~ tot_check
+matrix CTgroup = CTgroup | tmp
+
+strings names = defarray("developed", "emerging", "From")
+cnameset(CTgroup, names)
+strings rnames = defarray("developed", "emerging", "To")
+rnameset(CTgroup, rnames)
+
+printf "\n"
+printf "DY static connectedness (by groups)\n"
+printf "\n"
+eval CTgroup
+eval wb_matrix
